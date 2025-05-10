@@ -1,1 +1,0 @@
-Font from https://github.com/lichess-org/lila (AGPL v3)
