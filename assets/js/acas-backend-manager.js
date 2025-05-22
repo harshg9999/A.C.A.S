@@ -83,3 +83,5 @@ setInterval(() => {
         }
     });
 }, 1000);
+
+window.acasInstances = instances;

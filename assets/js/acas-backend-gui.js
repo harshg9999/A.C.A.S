@@ -206,6 +206,12 @@ guiBroadcastChannel.onmessage = e => {
     switch(type) {
         case 'updateChessVariants':
             fillChessVariantDropdowns(data);
+                break;
+            case 'repertoireHighlightNode':
+                if (window.repertoireGui && data && data.fen) {
+                    console.log(`Received repertoireHighlightNode event for FEN: ${data.fen}`);
+                    window.repertoireGui.highlightNodeByFen(data.fen);
+                }
             break;
     }
 };
@@ -1139,4 +1145,175 @@ function initGUI() {
     const dropdownInputElems = [...document.querySelectorAll('.dropdown-input')];
 
     dropdownInputElems.forEach(elem => initializeDropdown(elem));
+
+    // Initialize Repertoire Tree
+    const repertoireTreeContainer = document.getElementById('repertoireTreeContainer');
+    if (repertoireTreeContainer) {
+        // Load repertoire data
+        // Ensure RepertoireTree and RepertoireGUI are available globally or imported if using modules
+        let repertoireData = RepertoireTree.loadFromLocalStorage("acasRepertoire");
+
+        // If the tree is empty (e.g., first time run), add some sample moves for testing
+        if (repertoireData.root.children.length === 0) {
+            console.log("Repertoire tree is empty, adding initial sample moves for testing.");
+            const e4Node = repertoireData.addMove(repertoireData.root.fen, "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1", "e4");
+            if (e4Node) {
+                e4Node.comment = "King's Pawn Opening";
+                const c5Node = repertoireData.addMove(e4Node.fen, "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2", "c5");
+                if (c5Node) {
+                    c5Node.comment = "Sicilian Defense";
+                }
+                const e5Node = repertoireData.addMove(e4Node.fen, "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2", "e5");
+                 if (e5Node) {
+                    e5Node.comment = "King's Pawn Game";
+                }
+            }
+            repertoireData.saveToLocalStorage("acasRepertoire");
+        }
+
+        const repertoireGui = new RepertoireGUI(repertoireTreeContainer, repertoireData);
+        repertoireGui.onNodeClick((fen, move) => {
+            console.log(`Repertoire Node Clicked: Move ${move}, FEN ${fen}`);
+            
+            // Access instances from acas-backend-manager.js
+            // This assumes 'instances' is made available globally or via module system.
+            // For this subtask, we'll write it as if 'window.acasInstances' exists.
+            // A more robust solution might involve events or dedicated service locators.
+            const currentInstances = window.acasInstances || (typeof instances !== 'undefined' ? instances : null);
+
+            if (currentInstances && currentInstances.length > 0) {
+                // For now, assume we operate on the first instance.
+                // Future improvements could involve selecting an active instance.
+                const targetInstance = currentInstances[0].instance; 
+                if (targetInstance && targetInstance.Interface && targetInstance.Interface.boardUtils && targetInstance.Interface.boardUtils.updateBoardFen) {
+                    console.log(`Updating board for instance ${currentInstances[0].id} to FEN: ${fen}`);
+                    targetInstance.Interface.boardUtils.updateBoardFen(fen);
+                    
+                    // Highlight the node in the GUI after setting the board.
+                    // The GUI's internal click already handles selection, but an explicit call
+                    // ensures it if updateBoardFen might trigger other highlights.
+                    repertoireGui.highlightNodeByFen(fen); 
+                } else {
+                    console.warn("Target instance or its board update methods are not available.");
+                }
+            } else {
+                console.warn("No ACAS instances available to update board.");
+            }
+        });
+        repertoireGui.renderTree();
+        
+        // Make repertoireGui and repertoireData globally accessible for debugging and future interactions
+        window.repertoireGui = repertoireGui;
+        window.repertoireData = repertoireData;
+
+    } else {
+        console.warn("Repertoire tree container element ('repertoireTreeContainer') not found in the DOM.");
+    }
+
+    // ... after repertoireGui.renderTree(); and window assignments ...
+
+    const addToRepertoireBtn = document.getElementById('addToRepertoireBtn');
+    if (addToRepertoireBtn) {
+        addToRepertoireBtn.onclick = () => {
+            const currentInstances = window.acasInstances || (typeof instances !== 'undefined' ? instances : null);
+            if (!currentInstances || currentInstances.length === 0) {
+                toast.error("No active board instance to get position from.");
+                console.warn("Add to Repertoire: No ACAS instances available.");
+                return;
+            }
+
+            // Assume the first instance is the target
+            const activeInstance = currentInstances[0].instance;
+            if (!activeInstance) {
+                toast.error("Active instance is not valid.");
+                console.warn("Add to Repertoire: Active instance is not valid.");
+                return;
+            }
+
+            const currentFen = activeInstance.currentFen;
+            
+            // Infer parent FEN and last move.
+            // This relies on activeInstance.pV being structured and populated.
+            // We need to find the 'lastFen' for the *current profile* of that instance.
+            // For simplicity, assuming the first profile or a 'default' profile if multiple exist.
+            let parentFen = null;
+            let lastMoveSan = null; // Standard Algebraic Notation of the move
+
+            // Attempt to get the profile name; this might need refinement based on how profiles are managed per instance
+            const profileKeys = Object.keys(activeInstance.pV);
+            const targetProfileName = profileKeys.length > 0 ? profileKeys[0] : null; // Default to first profile
+
+            if (targetProfileName && activeInstance.pV[targetProfileName] && activeInstance.pV[targetProfileName].lastFen) {
+                parentFen = activeInstance.pV[targetProfileName].lastFen;
+            } else {
+                 // Fallback: if no lastFen for a profile, try to find the root of the repertoire if currentFen is a direct child
+                const rootNode = window.repertoireData.root;
+                const directChild = rootNode.children.find(child => child.fen === currentFen);
+                if(directChild){
+                    parentFen = rootNode.fen;
+                } else {
+                    // If current FEN is the root FEN, don't add.
+                    if (currentFen === window.repertoireData.root.fen) {
+                        toast.info("Current position is the starting position. Cannot add 'root' as a move.");
+                        return;
+                    }
+                    // If still no parentFen, we might be at the root or history is unclear.
+                    // Try to use the repertoire's root as parent if no better option.
+                    // This might not always be correct if the board was set to an arbitrary FEN.
+                    parentFen = window.repertoireData.root.fen;
+                    console.warn("Add to Repertoire: Could not determine precise parent FEN from instance profiles. Attempting to use repertoire root as parent.");
+                }
+            }
+
+            if (!parentFen) {
+                toast.error("Could not determine the parent position for the repertoire.");
+                console.warn("Add to Repertoire: Parent FEN is null or undefined.");
+                return;
+            }
+
+            // Deduce the move using extractMoveFromBoardFen
+            // Ensure extractMoveFromBoardFen is globally available or imported
+            if (typeof extractMoveFromBoardFen === 'function') {
+                const moveDetail = extractMoveFromBoardFen(parentFen, currentFen); // from, to, color
+                // We need SAN (e.g. Nf3, e4). This is the hardest part without a full chess library
+                // or getting it from chessground's last move.
+                // For now, we'll use a placeholder if we can't get it from chessground.
+                // Placeholder: "from-to" (e.g., "g1-f3")
+                if (moveDetail.from && moveDetail.to) {
+                    lastMoveSan = `${moveDetail.from}-${moveDetail.to}`; // Placeholder
+                    // Ideal: Get SAN from chessground if possible, e.g., activeInstance.chessground.state.lastMove
+                    // Or, if the instance stores the last played SAN.
+                    // For now, this placeholder is what we have.
+                }
+            }
+
+            if (!lastMoveSan) {
+                // Try to prompt user for the move if it cannot be determined
+                lastMoveSan = prompt("Could not automatically determine the last move. Please enter SAN (e.g., e4, Nf3):");
+                if (!lastMoveSan) {
+                    toast.error("Move notation is required to add to repertoire.");
+                    return;
+                }
+            }
+            
+            // Check if the current FEN is trying to be added as a child of itself
+            if (parentFen === currentFen) {
+                toast.error("Cannot add a position as a child of itself.");
+                console.warn("Add to Repertoire: Parent FEN and Current FEN are the same.");
+                return;
+            }
+
+            const newNode = window.repertoireData.addMove(parentFen, currentFen, lastMoveSan);
+            if (newNode) {
+                toast.success(`Added '${lastMoveSan}' to repertoire.`);
+                window.repertoireGui.renderTree(); // Refresh the tree display
+                window.repertoireGui.highlightNodeByFen(currentFen); // Highlight the newly added node
+                window.repertoireData.saveToLocalStorage("acasRepertoire"); // Save changes
+            } else {
+                toast.error("Failed to add move to repertoire. Parent position might not exist in tree.");
+            }
+        };
+    } else {
+        console.warn("Button with ID 'addToRepertoireBtn' not found.");
+    }
 }

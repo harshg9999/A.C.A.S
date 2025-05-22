@@ -1,0 +1,57 @@
+/* assets/css/acas-repertoire.css */
+
+.repertoire-tree-root,
+.repertoire-tree-root ul {
+    list-style-type: none;
+    padding-left: 20px; /* Indentation for children */
+    margin: 0;
+}
+
+.repertoire-tree-node {
+    padding: 2px 0;
+    position: relative; /* For positioning toggle button if needed */
+}
+
+.repertoire-move {
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.repertoire-move:hover {
+    background-color: #f0f0f0; /* Light grey background on hover */
+}
+
+.repertoire-move.selected {
+    background-color: #a0c0ff; /* Light blue for selected move */
+    font-weight: bold;
+}
+
+.repertoire-toggle {
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    border-radius: 3px;
+    width: 18px;
+    height: 18px;
+    text-align: center;
+    line-height: 15px; /* Adjust for vertical centering of +/- */
+    margin-right: 5px;
+    font-family: monospace;
+    font-size: 14px;
+    display: inline-block; /* Ensure it's on the same line as move */
+    vertical-align: middle; /* Align with text */
+}
+
+.repertoire-toggle:hover {
+    background-color: #e0e0e0;
+}
+
+/* Styling for children ULs, initially shown */
+.repertoire-tree-node ul.repertoire-children {
+    /* display: none; */ /* To start collapsed, uncomment this and change toggle default text to '+' */
+    padding-left: 25px; /* Further indent children */
+    border-left: 1px dashed #ccc; /* Line to show hierarchy */
+    margin-left: 8px; /* Align with the text, not the toggle */
+}

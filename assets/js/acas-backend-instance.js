@@ -383,6 +383,11 @@ class BackendInstance {
                     USERSCRIPT.instanceVars.fen.set(this.instanceID, fen);
 
                     this.chessground.set({ fen });
+
+                    // Notify repertoire GUI to highlight this FEN
+                    if (this.guiBroadcastChannel) {
+                        this.guiBroadcastChannel.postMessage({ type: 'repertoireHighlightNode', data: { fen: this.currentFen /* which is fen at this point */ } });
+                    }
     
                     this.instanceElem.querySelector('.instance-fen').innerText = fen;
 

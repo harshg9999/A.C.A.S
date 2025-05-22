@@ -56,6 +56,7 @@
 		<link rel="stylesheet" type="text/css" href="../assets/css/custom-inputs.css"/>
 		<link rel="stylesheet" type="text/css" href="../assets/css/acas-toast.css"/>
 		<link rel="stylesheet" type="text/css" href="../assets/css/bg-textures.css"/>
+		<link rel="stylesheet" href="../assets/css/acas-repertoire.css">
 		<link rel="icon" type="image/x-icon" href="../favicon.ico"/>
 	</head>
 	<body>
@@ -157,6 +158,10 @@
 
 		<!-- ACAS INSTANCE CONTAINER-->
 		<div id="acas-instance-container">
+			<div style="padding: 5px;"> <!-- Simple wrapper for the button -->
+				<button id="addToRepertoireBtn" class="acas-fancy-button">Add Current Position to Repertoire</button>
+			</div>
+			<div id="repertoireTreeContainer" style="width: 300px; height: 400px; overflow: auto; border: 1px solid #ccc;"></div>
 			<div id="no-instances-container">
 				<div id="no-instances-title">Waiting for instances...</div>
 				<div id="no-instances-subtitle">Ready to give me some action? Open up a chess game site and let me finally have some fun! I've been waiting patiently, counting my virtual fingers, just dying to make some moves!</div>
@@ -700,6 +705,8 @@
 		</div>
 
 		<script src="../assets/js/acas-toast.js"></script>
+		<script src="../assets/js/acas-repertoire-data.js"></script>
+		<script src="../assets/js/acas-repertoire-gui.js"></script>
 		<script type="module" src="../assets/js/acas-load-modules.js"></script>
 		<script src="../assets/js/acas-backend-gui.js?new=true"></script>
 		<script src="index.js"></script>
